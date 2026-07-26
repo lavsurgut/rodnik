@@ -11,10 +11,6 @@ run:
 - **matviews** — durable Clojure data of any shape, queried with
   [Specter](https://clojars.org/com.rpl/specter) paths
 
-Matview writes and consumer positions commit in one backend transaction, so
-every event is reflected in your matviews **exactly once**. Backends are
-pluggable: in-memory and PostgreSQL today.
-
 ## Why
 
 The usual event-driven stack is three systems glued together — a queue, a
