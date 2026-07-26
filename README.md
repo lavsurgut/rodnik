@@ -1,14 +1,12 @@
 # rodnik
 
-*родник — a natural spring: the source your streams flow from.*
-
 Rodnik is an event-streaming and materialized-view system for Clojure, built
 on storage you already run. You append events to durable, partitioned
 **logs**; **processors** consume them transactionally; the results live in
 **views** — durable Clojure data structures of any shape, queried with
 [Specter](https://clojars.org/com.rpl/specter) paths. Storage is
 pluggable: the same program runs unchanged on the in-memory backend or on
-**PostgreSQL** (FoundationDB is on the roadmap).
+**PostgreSQL** (more backends is on the roadmap).
 
 **Status: pre-alpha.** The programming model works end to end, but APIs will
 change and nothing has seen production traffic yet.
