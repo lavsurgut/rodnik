@@ -11,6 +11,13 @@ consumer positions commit in one backend transaction, so every event is
 reflected in your views **exactly once**. Backends are pluggable: in-memory
 and PostgreSQL today.
 
+## Why
+
+The usual event-driven stack is three systems glued together — a queue, a
+stream processor, and a database — and delivery guarantees evaporate at each
+seam. Rodnik collapses the seams: one library, one storage backend, and
+state that is plain Clojure data instead of rows mapped back and forth.
+
 ## Quickstart
 
 ```clojure
