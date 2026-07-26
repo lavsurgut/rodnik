@@ -12,3 +12,11 @@ pom.xml.asc
 .lein-failures
 .nrepl-port
 .cpcache/
+
+# tooling caches
+.lsp/
+.clj-kondo/
+.DS_Store
+.envrc.private
+.idea/
+*.iml

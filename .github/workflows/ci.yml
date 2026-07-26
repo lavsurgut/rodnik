@@ -1,0 +1,45 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: rodnik
+          POSTGRES_PASSWORD: rodnik
+          POSTGRES_DB: rodnik
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U rodnik"
+          --health-interval 2s
+          --health-timeout 2s
+          --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: DeLaGuardo/setup-clojure@13.0
+        with:
+          cli: latest
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ~/.m2/repository
+            ~/.gitlibs
+          key: deps-${{ hashFiles('deps.edn') }}
+          restore-keys: deps-
+      - name: Run tests (in-memory + PostgreSQL)
+        run: clojure -X:test
+        env:
+          RODNIK_PG_TEST: "1"
+          RODNIK_PG_URL: jdbc:postgresql://localhost:5433/rodnik?user=rodnik&password=rodnik
