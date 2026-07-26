@@ -3,7 +3,7 @@
 
   rodnik combines event logs and materialized views into one system: you
   append events to durable partitioned logs, processors consume them
-  transactionally, and the results live in views — durable Clojure data
+  transactionally, and the results live in matviews — durable Clojure data
   structures of any shape, queried with Specter paths. Storage is pluggable:
   the same program runs on the in-memory backend or on PostgreSQL.
 
@@ -14,7 +14,7 @@
     (def sys
       (-> (r/system {:backend (mem/backend)})
           (r/declare-log! :words {:partitions 2})
-          (r/declare-view! :word-counts)
+          (r/declare-matview! :word-counts)
           (r/declare-processor! :word-count
             {:source :words
              :handler (fn [tx word]
@@ -29,8 +29,8 @@
             [rodnik.processor :as processor]))
 
 (defn system
-  "Create a system on the given backend. Declare logs, views and processors
-  on it, then `start!` it."
+  "Create a system on the given backend. Declare logs, matviews and
+  processors on it, then `start!` it."
   [{:keys [backend]}]
   {:backend backend
    :processors (atom {})
@@ -44,11 +44,12 @@
    (b/create-log! (:backend sys) log (merge {:partitions 1} opts))
    sys))
 
-(defn declare-view!
-  "Declare a durable view: a map of key -> arbitrary EDN value. Idempotent."
-  ([sys view] (declare-view! sys view {}))
-  ([sys view opts]
-   (b/create-view! (:backend sys) view opts)
+(defn declare-matview!
+  "Declare a durable materialized view: a map of key -> arbitrary EDN value.
+  Idempotent."
+  ([sys matview] (declare-matview! sys matview {}))
+  ([sys matview opts]
+   (b/create-matview! (:backend sys) matview opts)
    sys))
 
 (defn declare-processor!
@@ -102,28 +103,28 @@
      (b/append!* backend log partition event))))
 
 (defn select
-  "All results of navigating the Specter path inside the view's value at
+  "All results of navigating the Specter path inside the matview's value at
   key k. Empty path selects the whole value."
-  ([sys view k] (select sys view k []))
-  ([sys view k path]
-   (sp/select (vec path) (b/view-read* (:backend sys) view k))))
+  ([sys matview k] (select sys matview k []))
+  ([sys matview k path]
+   (sp/select (vec path) (b/matview-read* (:backend sys) matview k))))
 
 (defn select-one
   "Like `select` but returns the single result, or nil."
-  ([sys view k] (select-one sys view k []))
-  ([sys view k path]
-   (sp/select-one (vec path) (b/view-read* (:backend sys) view k))))
+  ([sys matview k] (select-one sys matview k []))
+  ([sys matview k path]
+   (sp/select-one (vec path) (b/matview-read* (:backend sys) matview k))))
 
 (defn transform!
   "Within a processor transaction: navigate the Specter path inside the
-  view's value at key k, apply (f value & args) at its terminus, and write
-  the result back. Use sp/nil->val in the path to seed missing state."
-  [tx view k path f & args]
-  (let [v (b/view-get* tx view k)
+  matview's value at key k, apply (f value & args) at its terminus, and
+  write the result back. Use sp/nil->val in the path to seed missing state."
+  [tx matview k path f & args]
+  (let [v (b/matview-get* tx matview k)
         v' (sp/transform (vec path) #(apply f % args) v)]
-    (b/view-put* tx view k v')))
+    (b/matview-put* tx matview k v')))
 
 (defn put!
-  "Within a processor transaction: replace the view's value at key k."
-  [tx view k v]
-  (b/view-put* tx view k v))
+  "Within a processor transaction: replace the matview's value at key k."
+  [tx matview k v]
+  (b/matview-put* tx matview k v))

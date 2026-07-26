@@ -5,10 +5,10 @@
 
 Event streams and materialized views for Clojure, on storage you already
 run. Append events to partitioned **logs**; **processors** consume them
-transactionally into **views** — durable Clojure data of any shape, queried
-with [Specter](https://clojars.org/com.rpl/specter) paths. View writes and
+transactionally into **matviews** — durable Clojure data of any shape, queried
+with [Specter](https://clojars.org/com.rpl/specter) paths. Matview writes and
 consumer positions commit in one backend transaction, so every event is
-reflected in your views **exactly once**. Backends are pluggable: in-memory
+reflected in your matviews **exactly once**. Backends are pluggable: in-memory
 and PostgreSQL today.
 
 ## Why
@@ -28,7 +28,7 @@ state that is plain Clojure data instead of rows mapped back and forth.
 (def sys
   (-> (r/system {:backend (mem/backend)})
       (r/declare-log! :words {:partitions 2})
-      (r/declare-view! :word-counts)
+      (r/declare-matview! :word-counts)
       (r/declare-processor! :word-count
         {:source :words
          :handler (fn [tx word]

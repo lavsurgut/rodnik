@@ -22,7 +22,7 @@
 
 (defn- reset-tables! []
   (let [ds (jdbc/get-datasource url)]
-    (doseq [t ["rodnik_log_words" "rodnik_view_word_counts"
+    (doseq [t ["rodnik_log_words" "rodnik_matview_word_counts"
                "rodnik_positions" "rodnik_meta"]]
       (jdbc/execute! ds [(str "DROP TABLE IF EXISTS " t " CASCADE")]))))
 
@@ -42,7 +42,7 @@
           (finally
             (r/close! sys))))
       ;; Durability: a brand-new system over the same database continues from
-      ;; the stored views and positions — no reprocessing, no double counts.
+      ;; the stored matviews and positions — no reprocessing, no double counts.
       (let [sys (ct/word-count-system (pg/backend {:jdbc-url url}))]
         (try
           (run! #(r/append! sys :words %) ["to" "and" "fro"])
@@ -58,7 +58,7 @@
   (if-not enabled?
     (println "rodnik.pg-test: skipped (set RODNIK_PG_TEST=1 to run)")
     (let [ds (jdbc/get-datasource url)]
-      (doseq [t ["rodnik_log_events" "rodnik_view_snapshots"]]
+      (doseq [t ["rodnik_log_events" "rodnik_matview_snapshots"]]
         (jdbc/execute! ds [(str "DROP TABLE IF EXISTS " t " CASCADE")]))
       (let [event {:id #uuid "8d47f2a0-0000-4000-8000-000000000042"
                    :tags #{:a :b}
@@ -66,7 +66,7 @@
                    :nested {[1 2] "vector-key"}}
             sys (-> (r/system {:backend (pg/backend {:jdbc-url url})})
                     (r/declare-log! :events)
-                    (r/declare-view! :snapshots)
+                    (r/declare-matview! :snapshots)
                     (r/declare-processor! :snapshotter
                       {:source :events
                        :handler (fn [tx e] (r/put! tx :snapshots (:id e) e))})

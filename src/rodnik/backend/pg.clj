@@ -3,19 +3,19 @@
 
   Mapping:
 
-   - log       -> rodnik_log_<name>   (part int, off bigint identity, data text)
-   - view      -> rodnik_view_<name>  (k text primary key, v text)
-   - positions -> rodnik_positions    (processor, log, part -> off)
-   - registry  -> rodnik_meta         (declared logs/views and their opts)
+   - log       -> rodnik_log_<name>     (part int, off bigint identity, data text)
+   - matview   -> rodnik_matview_<name> (k text primary key, v text)
+   - positions -> rodnik_positions      (processor, log, part -> off)
+   - registry  -> rodnik_meta           (declared logs/matviews and their opts)
 
-  All keys and values are stored as EDN text (pr-str / clojure.edn), so views
-  hold arbitrary Clojure data with full fidelity. `with-tx*` maps to a single
-  SQL transaction; view reads inside a tx take FOR UPDATE row locks, so
-  concurrent processors updating the same key serialize instead of clobbering
-  each other.
+  All keys and values are stored as EDN text (pr-str / clojure.edn), so
+  matviews hold arbitrary Clojure data with full fidelity. `with-tx*` maps to
+  a single SQL transaction; matview reads inside a tx take FOR UPDATE row
+  locks, so concurrent processors updating the same key serialize instead of
+  clobbering each other.
 
-  Table names are derived from log/view names sanitized to [a-z0-9_]; they
-  come from code, not user input."
+  Table names are derived from log/matview names sanitized to [a-z0-9_];
+  they come from code, not user input."
   (:require [clojure.edn :as edn]
             [clojure.string :as str]
             [next.jdbc :as jdbc]
@@ -35,7 +35,7 @@
            str/lower-case)))
 
 (defn- log-table [l] (sql-name "rodnik_log_" l))
-(defn- view-table [v] (sql-name "rodnik_view_" v))
+(defn- matview-table [v] (sql-name "rodnik_matview_" v))
 
 (def ^:private base-ddl
   ["CREATE TABLE IF NOT EXISTS rodnik_meta (
@@ -52,14 +52,14 @@
 
 (defrecord PgTx [conn]
   b/Tx
-  (view-get* [_ view k]
-    (some-> (q1 conn [(str "SELECT v FROM " (view-table view)
+  (matview-get* [_ matview k]
+    (some-> (q1 conn [(str "SELECT v FROM " (matview-table matview)
                            " WHERE k = ? FOR UPDATE")
                       (pr-str k)])
             :v
             edn/read-string))
-  (view-put* [_ view k v]
-    (q1 conn [(str "INSERT INTO " (view-table view) " (k, v) VALUES (?, ?)"
+  (matview-put* [_ matview k v]
+    (q1 conn [(str "INSERT INTO " (matview-table matview) " (k, v) VALUES (?, ?)"
                    " ON CONFLICT (k) DO UPDATE SET v = EXCLUDED.v")
               (pr-str k) (pr-str v)]))
   (set-position* [_ processor log partition offset]
@@ -84,14 +84,14 @@
                           ON CONFLICT (kind, name) DO UPDATE SET opts = EXCLUDED.opts"
                          (str log) (pr-str opts)])
       (swap! meta-cache assoc [:log log] opts)))
-  (create-view! [_ view opts]
-    (jdbc/execute! ds [(str "CREATE TABLE IF NOT EXISTS " (view-table view) " (
+  (create-matview! [_ matview opts]
+    (jdbc/execute! ds [(str "CREATE TABLE IF NOT EXISTS " (matview-table matview) " (
                               k text PRIMARY KEY,
                               v text NOT NULL)")])
-    (jdbc/execute! ds ["INSERT INTO rodnik_meta (kind, name, opts) VALUES ('view', ?, ?)
+    (jdbc/execute! ds ["INSERT INTO rodnik_meta (kind, name, opts) VALUES ('matview', ?, ?)
                         ON CONFLICT (kind, name) DO UPDATE SET opts = EXCLUDED.opts"
-                       (str view) (pr-str opts)])
-    (swap! meta-cache assoc [:view view] opts))
+                       (str matview) (pr-str opts)])
+    (swap! meta-cache assoc [:matview matview] opts))
   (log-partitions [_ log]
     (or (get-in @meta-cache [[:log log] :partitions])
         (some-> (q1 ds ["SELECT opts FROM rodnik_meta WHERE kind = 'log' AND name = ?"
@@ -120,8 +120,8 @@
                        WHERE processor = ? AND log = ? AND part = ?"
                       (str processor) (str log) partition]))
         -1))
-  (view-read* [_ view k]
-    (some-> (q1 ds [(str "SELECT v FROM " (view-table view) " WHERE k = ?")
+  (matview-read* [_ matview k]
+    (some-> (q1 ds [(str "SELECT v FROM " (matview-table matview) " WHERE k = ?")
                     (pr-str k)])
             :v
             edn/read-string))

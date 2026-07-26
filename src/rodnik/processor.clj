@@ -2,9 +2,10 @@
   "The processor runtime: polling consumer loops.
 
   One daemon thread per (processor, source partition). Each iteration runs a
-  single backend transaction: read a batch, run the handler for every event,
-  advance the position, commit. A handler exception rolls the whole batch
-  back; the batch is retried after :retry-ms and never skipped."
+  single backend transaction: read a batch, run the handler for every event
+  (matview writes go through the tx), advance the position, commit. A
+  handler exception rolls the whole batch back; the batch is retried after
+  :retry-ms and never skipped."
   (:require [clojure.tools.logging :as log]
             [rodnik.backend :as b]))
 

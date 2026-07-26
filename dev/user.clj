@@ -10,7 +10,7 @@
   (def sys
     (-> (r/system {:backend (mem/backend)})
         (r/declare-log! :words {:partitions 2})
-        (r/declare-view! :word-counts)
+        (r/declare-matview! :word-counts)
         (r/declare-processor! :word-count
           {:source :words
            :handler (fn [tx word]
@@ -25,7 +25,7 @@
     (-> (r/system {:backend (pg/backend
                              {:jdbc-url "jdbc:postgresql://localhost:5433/rodnik?user=rodnik&password=rodnik"})})
         (r/declare-log! :words {:partitions 2})
-        (r/declare-view! :word-counts)
+        (r/declare-matview! :word-counts)
         (r/declare-processor! :word-count
           {:source :words
            :handler (fn [tx word]

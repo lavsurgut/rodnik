@@ -17,11 +17,11 @@
 
 (defn word-count-system
   "The canonical example: count words from the :words log into the
-  :word-counts view."
+  :word-counts matview."
   [backend]
   (-> (r/system {:backend backend})
       (r/declare-log! :words {:partitions 2})
-      (r/declare-view! :word-counts)
+      (r/declare-matview! :word-counts)
       (r/declare-processor! :word-count
         {:source :words
          :handler (fn [tx word]
@@ -40,10 +40,10 @@
       (finally
         (r/close! sys)))))
 
-(deftest nested-views-and-paths
+(deftest nested-matviews-and-paths
   (let [sys (-> (r/system {:backend (mem/backend)})
                 (r/declare-log! :page-views)
-                (r/declare-view! :profiles)
+                (r/declare-matview! :profiles)
                 (r/declare-processor! :profiler
                   {:source :page-views
                    :handler (fn [tx {:keys [user page]}]
@@ -88,7 +88,7 @@
   (let [attempts (atom 0)
         sys (-> (r/system {:backend (mem/backend)})
                 (r/declare-log! :numbers)
-                (r/declare-view! :sums)
+                (r/declare-matview! :sums)
                 (r/declare-processor! :summer
                   {:source :numbers
                    :retry-ms 20

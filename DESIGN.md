@@ -5,7 +5,7 @@
 1. **One system, one transaction.** Transport, processing, and indexed state
    behind one API; a processor's effects commit atomically with its
    progress. Exactly-once state updates are the defining guarantee.
-2. **State as plain Clojure data.** Views are durable EDN values of any
+2. **State as plain Clojure data.** Matviews are durable EDN values of any
    shape, navigated with Specter paths.
 3. **Pluggable storage.** The model is defined against a small backend SPI;
    the in-memory backend is its executable specification.
@@ -20,11 +20,11 @@ cross-partition transactions.
 append! ─> log (partitioned, append-only)
                │ polled in batches
                ▼
-           processor ── handler(tx, event) ─> view writes via tx
+           processor ── handler(tx, event) ─> matview writes via tx
                │                                   │
                └── set-position ───────────────────┘
                        one backend transaction
-                                              view <── select / select-one
+                                              matview <── select / select-one
 ```
 
 - Offsets are per-partition and monotonic; `append!` routes by partition
@@ -38,13 +38,13 @@ append! ─> log (partitioned, append-only)
 ## Backend SPI
 
 `rodnik.backend/Backend` + `Tx`: logs are ordered-per-partition durable
-sequences, views are durable key→EDN maps, and `with-tx*` runs view writes
+sequences, matviews are durable key→EDN maps, and `with-tx*` runs matview writes
 and position advances atomically, with read-your-writes inside the
 transaction. Implementations must also ensure:
 
 - `read-batch*` never returns offset n+1 while an append destined for
   offset n is uncommitted — consumers would skip n forever;
-- concurrent transactions on the same view key serialize instead of
+- concurrent transactions on the same matview key serialize instead of
   lost-updating each other.
 
 ## PostgreSQL backend
@@ -52,14 +52,14 @@ transaction. Implementations must also ensure:
 | rodnik | PostgreSQL |
 |---|---|
 | log | `rodnik_log_<name>` — part, off (identity, PK), data (EDN text) |
-| view | `rodnik_view_<name>` — k (EDN text, PK), v (EDN text) |
+| matview | `rodnik_matview_<name>` — k (EDN text, PK), v (EDN text) |
 | positions | `rodnik_positions` — (processor, log, part) → off |
 | `with-tx*` | one SQL transaction |
-| tx view read | `SELECT … FOR UPDATE` |
+| tx matview read | `SELECT … FOR UPDATE` |
 | consumption | polling, 20 ms default |
 
 - **EDN text over jsonb:** full Clojure fidelity; paths apply client-side.
-  Opt-in jsonb views with server-side path push-down are roadmap.
+  Opt-in jsonb matviews with server-side path push-down are roadmap.
 - **`pg_advisory_xact_lock` per (log, partition) on append** keeps commit
   order equal to offset order. Cost: single-writer throughput per partition.
 
@@ -71,6 +71,6 @@ pooling, no log retention, poison events block their partition.
 1. Hardening: connection pooling, metrics, dead-letter policy, retention.
 2. Scale-out: partition leases so multiple JVMs share one system.
 3. Composition: multi-log processors, chained pipelines, windows.
-4. Reactive reads: subscriptions to view paths.
+4. Reactive reads: subscriptions to matview paths.
 5. More backends: FoundationDB next.
-6. Server-side paths: schema'd jsonb views for hot queries.
+6. Server-side paths: schema'd jsonb matviews for hot queries.

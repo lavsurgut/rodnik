@@ -4,13 +4,13 @@
   A backend provides three primitives:
 
    - logs:      append-only, partitioned logs of EDN events
-   - views:     durable maps of key -> arbitrary EDN value
+   - matviews:  durable maps of key -> arbitrary EDN value
    - positions: consumer progress per (processor, log, partition)
 
-  and one guarantee: `with-tx*` runs view writes and position advances in a
-  single atomic transaction. That transaction is what gives rodnik
-  exactly-once state updates — an event's effects on views and the position
-  move past that event commit together or not at all.
+  and one guarantee: `with-tx*` runs matview writes and position advances in
+  a single atomic transaction. That transaction is what gives rodnik
+  exactly-once state updates — an event's effects on matviews and the
+  position move past that event commit together or not at all.
 
   Implementations: rodnik.backend.mem (reference), rodnik.backend.pg.")
 
@@ -18,9 +18,9 @@
   "Handle to an open backend transaction. Processor handlers receive one and
   issue all writes through it. Reads through the Tx must see the
   transaction's own uncommitted writes."
-  (view-get* [tx view k]
+  (matview-get* [tx matview k]
     "Value at key k as seen by this transaction, or nil.")
-  (view-put* [tx view k v]
+  (matview-put* [tx matview k v]
     "Upsert value at key k.")
   (set-position* [tx processor log partition offset]
     "Record that processor consumed log's partition up to offset, inclusive."))
@@ -28,8 +28,8 @@
 (defprotocol Backend
   (create-log! [b log opts]
     "Idempotently create a log. opts: {:partitions n}.")
-  (create-view! [b view opts]
-    "Idempotently create a view.")
+  (create-matview! [b matview opts]
+    "Idempotently create a matview.")
   (log-partitions [b log]
     "Number of partitions of log.")
   (append!* [b log partition data]
@@ -39,7 +39,7 @@
      ({:offset n :data d} ...).")
   (get-position* [b processor log partition]
     "Last offset committed by processor for log's partition, or -1.")
-  (view-read* [b view k]
+  (matview-read* [b matview k]
     "Committed value at key k, or nil.")
   (with-tx* [b f]
     "Run (f tx). Commit on normal return, roll back on throw.

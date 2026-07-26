@@ -9,10 +9,10 @@
 
 (defn- tx-view [pending]
   (reify b/Tx
-    (view-get* [_ view k]
-      (get-in @pending [:views view k]))
-    (view-put* [_ view k v]
-      (vswap! pending assoc-in [:views view k] v))
+    (matview-get* [_ matview k]
+      (get-in @pending [:matviews matview k]))
+    (matview-put* [_ matview k v]
+      (vswap! pending assoc-in [:matviews matview k] v))
     (set-position* [_ processor log partition offset]
       (vswap! pending assoc-in [:positions [processor log partition]] offset))))
 
@@ -22,8 +22,8 @@
     (let [n (:partitions opts 1)]
       (swap! state update-in [:logs log]
              #(or % {:partitions n :events (vec (repeat n []))}))))
-  (create-view! [_ view _opts]
-    (swap! state update-in [:views view] #(or % {})))
+  (create-matview! [_ matview _opts]
+    (swap! state update-in [:matviews matview] #(or % {})))
   (log-partitions [_ log]
     (get-in @state [:logs log :partitions]))
   (append!* [_ log partition data]
@@ -39,8 +39,8 @@
             events)))
   (get-position* [_ processor log partition]
     (get-in @state [:positions [processor log partition]] -1))
-  (view-read* [_ view k]
-    (get-in @state [:views view k]))
+  (matview-read* [_ matview k]
+    (get-in @state [:matviews matview k]))
   (with-tx* [_ f]
     (locking lock
       (let [pending (volatile! @state)
@@ -52,4 +52,4 @@
 (defn backend
   "Create a fresh in-memory backend."
   []
-  (->MemBackend (atom {:logs {} :views {} :positions {}}) (Object.)))
+  (->MemBackend (atom {:logs {} :matviews {} :positions {}}) (Object.)))
